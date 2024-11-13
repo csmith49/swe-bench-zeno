@@ -1,1 +1,3 @@
 zeno-client
+click
+pydantic
