@@ -2,18 +2,38 @@
 
 import os
 import re
+from datetime import datetime
 
-import argparse
+import click
 import zeno_client
 import pandas as pd
 
 from data_utils import load_data, load_data_aider_bench, get_model_name_aider_bench
 
 
-def visualise_swe_bench(input_files: list[str]):
-    """Visualize data from multiple input files."""
+def visualise_swe_bench(
+    input_files: list[str],
+    project_title: str | None = None,
+    zeno_api_key: str | None = None,
+):
+    """
+    Visualize data from multiple input files.
+
+    Args:
+        input_files (list[str]): A list of filepaths representing SWE-bench trajectories generated
+        by OpenHands.
+
+        project_title (str | None, default=None): Title to use for the generated ZenoML project. If
+        not provided, generate a title based on the current date.
+
+        zeno_api_key (str | None, default=None): An optional API key for ZenoML. If not provided,
+        will attempt to read from the `ZENO_API_KEY` environment variable.
+
+    Raises:
+        AssertionError: If no API key can be found in the parameters or environment.
+    """
     data = [load_data(input_file) for input_file in input_files]
-    ids = [x[0] for x in data[0]]
+    ids = [trajectory[0] for dataset in data for trajectory in dataset]
     id_map = {x: i for (i, x) in enumerate(ids)}
 
     # Find all duplicate values in "ids"
@@ -25,8 +45,31 @@ def visualise_swe_bench(input_files: list[str]):
         seen.add(x)
     print(duplicates)
 
-    vis_client, vis_project = None, None
-    vis_client = zeno_client.ZenoClient(os.environ.get("ZENO_API_KEY"))
+    # Find an API key and build a client.
+    if zeno_api_key is None:
+        zeno_api_key = os.environ.get("ZENO_API_KEY")
+
+    assert zeno_api_key, "Can't find ZenoML API key"
+
+    vis_client = zeno_client.ZenoClient(zeno_api_key)
+
+    # Set the title if not given.
+    if project_title is None:
+        project_title = f"SWE-bench Performance: {datetime.now()}"
+
+    vis_project = vis_client.create_project(
+        name=project_title,
+        view={
+            "data": {"type": "markdown"},
+            "label": {"type": "text"},
+            "output": {"type": "text"},
+        },
+        description="OpenHands agent performance comparisons on SWE-bench",
+        public=False,
+        metrics=[
+            zeno_client.ZenoMetric(name="resolved", type="mean", columns=["resolved"]),
+        ],
+    )
 
     # use zeno to visualize
     df_data = pd.DataFrame(
@@ -38,19 +81,7 @@ def visualise_swe_bench(input_files: list[str]):
     )
     df_data["statement_length"] = df_data["problem_statement"].apply(len)
     df_data["repo"] = df_data["id"].str.rsplit("-", n=1).str[0]
-    vis_project = vis_client.create_project(
-        name="OD swe-bench visualization",
-        view={
-            "data": {"type": "markdown"},
-            "label": {"type": "text"},
-            "output": {"type": "text"},
-        },
-        description="OD issue prediction",
-        public=False,
-        metrics=[
-            zeno_client.ZenoMetric(name="resolved", type="mean", columns=["resolved"]),
-        ],
-    )
+
     vis_project.upload_dataset(
         df_data,
         id_column="id",
@@ -152,20 +183,23 @@ def visualize_aider_bench(input_files: list[str]):
         )
 
 
+@click.command()
+@click.argument("files", type=click.Path(exists=True), nargs=-1)
+@click.option("--report-title", type=str)
+@click.option(
+    "--benchmark", type=click.Choice(["swe-bench", "aider-bench"]), default="swe-bench"
+)
+@click.option("--zeno-api-key", type=str, envvar="ZENO_API_KEY")
+def cli(files, report_title, benchmark, zeno_api_key):
+    """
+    Generate a ZenoML performance report over the provided files.
+    """
+    match benchmark:
+        case "swe-bench":
+            visualise_swe_bench(files, report_title, zeno_api_key)
+        case "aider-bench":
+            visualize_aider_bench(files)
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Visualize results from SWE-bench experiments."
-    )
-    parser.add_argument("input_files", help="Path to multiple input files", nargs="+")
-    parser.add_argument(
-        "benchmark",
-        help="Benchmark to visualize",
-        type=str,
-        choices=["swe-bench", "aider-bench"],
-        default="swe-bench",
-    )
-    args = parser.parse_args()
-    if args.benchmark == "swe-bench":
-        visualise_swe_bench(args.input_files)
-    else:
-        visualize_aider_bench(args.input_files)
+    cli()  # pylint: disable=no-value-for-parameter
