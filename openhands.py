@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Callable
 import pandas as pd
 
 import click
@@ -67,6 +68,18 @@ def load_system(benchmark_path: BenchmarkPath) -> pd.DataFrame:
     return pd.concat(rows, ignore_index=True)
 
 
+def compute_metrics(system: pd.DataFrame, metrics: dict[str, Callable]) -> pd.DataFrame:
+    """
+    Extend a system with additional metrics.
+
+    Modifies the system in-place.
+    """
+    for key, metric in metrics.items():
+        system[key] = system.apply(metric, axis=1)
+
+    return system
+
+
 @click.command()
 @click.argument("benchmarks", type=click.Path(exists=True, file_okay=False), nargs=-1)
 @click.option("--project-title", type=str)
@@ -116,7 +129,27 @@ def cli(benchmarks, project_title, zeno_api_key) -> None:
 
         # Then convert the benchmark to a ZenoML system.
         viz_project.upload_system(
-            load_system(benchmark_path),
+            compute_metrics(
+                load_system(benchmark_path),
+                {
+                    "history_length": lambda row: len(row["history"]),
+                    "git_patch_length": lambda row: len(row["git_patch"]),
+                    "git_patch_insertions": lambda row: len(
+                        [
+                            line
+                            for line in row["git_patch"].split("\n")
+                            if line.startswith("+")
+                        ]
+                    ),
+                    "git_patch_deletions": lambda row: len(
+                        [
+                            line
+                            for line in row["git_patch"].split("\n")
+                            if line.startswith("-")
+                        ]
+                    ),
+                },
+            ),
             name=benchmark_path.name,
             id_column="id",
             output_column="git_patch",
