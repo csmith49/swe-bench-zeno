@@ -1,7 +1,6 @@
 """Perform grid search over many parameters."""
 
 import os
-import re
 from datetime import datetime
 
 import click
@@ -9,10 +8,10 @@ import zeno_client
 import pandas as pd
 
 from data_utils import (
-    load_data,
     load_data_aider_bench,
     get_model_name_aider_bench,
     load_swe_bench_dataset,
+    load_swe_bench_trajectories,
 )
 from models import SWEBenchPath
 
@@ -38,19 +37,6 @@ def visualise_swe_bench(
     Raises:
         AssertionError: If no API key can be found in the parameters or environment.
     """
-    data = [load_data(input_file.trajectories) for input_file in benchmark_paths]
-    ids = [trajectory[0] for dataset in data for trajectory in dataset]
-    id_map = {x: i for (i, x) in enumerate(ids)}
-
-    # Find all duplicate values in "ids"
-    seen = set()
-    duplicates = set()
-    for x in ids:
-        if x in seen:
-            duplicates.add(x)
-        seen.add(x)
-    print(duplicates)
-
     # Find an API key and build a client.
     if zeno_api_key is None:
         zeno_api_key = os.environ.get("ZENO_API_KEY")
@@ -85,22 +71,12 @@ def visualise_swe_bench(
     )
 
     # Do evaluation
-    for input_file, data_entry in zip(benchmark_paths, data):
-        resolved = [0] * len(data[0])
-        for entry in data_entry:
-            resolved[id_map[entry[0]]] = entry[2]
-        df_system = pd.DataFrame(
-            {
-                "id": ids,
-                "resolved": resolved,
-            },
-            index=ids,
-        )
-        model_name = re.sub(r"data/.*lite/", "", str(input_file.trajectories))
-        model_name = re.sub(r"(od_output|output).jsonl", "", model_name)
-        model_name = model_name.replace("/", "_")
+    for benchmark in benchmark_paths:
         vis_project.upload_system(
-            df_system, name=model_name, id_column="id", output_column="resolved"
+            load_swe_bench_trajectories(benchmark),
+            name=benchmark.name,
+            id_column="id",
+            output_column="resolved",
         )
 
 
