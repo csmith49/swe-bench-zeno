@@ -180,25 +180,25 @@ def visualize_aider_bench(input_files: list[str]):
 
 
 @click.command()
-@click.argument("files", type=click.Path(exists=True, file_okay=False), nargs=-1)
+@click.argument("benchmarks", type=click.Path(exists=True, file_okay=False), nargs=-1)
 @click.option("--report-title", type=str)
 @click.option(
     "--benchmark", type=click.Choice(["swe-bench", "aider-bench"]), default="swe-bench"
 )
 @click.option("--zeno-api-key", type=str, envvar="ZENO_API_KEY")
-def cli(files, report_title, benchmark, zeno_api_key):
+def cli(benchmarks, report_title, benchmark, zeno_api_key):
     """
     Generate a ZenoML performance report over the provided files.
     """
     match benchmark:
         case "swe-bench":
             visualise_swe_bench(
-                [SWEBenchPath.from_directory(file) for file in files],
+                [SWEBenchPath.from_directory(benchmark) for benchmark in benchmarks],
                 report_title,
                 zeno_api_key,
             )
         case "aider-bench":
-            visualize_aider_bench(files)
+            visualize_aider_bench(benchmarks)
 
 
 if __name__ == "__main__":
