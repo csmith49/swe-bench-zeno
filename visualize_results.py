@@ -14,10 +14,11 @@ from data_utils import (
     get_model_name_aider_bench,
     load_swe_bench_dataset,
 )
+from models import SWEBenchPath
 
 
 def visualise_swe_bench(
-    input_files: list[str],
+    benchmark_paths: list[SWEBenchPath],
     project_title: str | None = None,
     zeno_api_key: str | None = None,
 ):
@@ -37,7 +38,7 @@ def visualise_swe_bench(
     Raises:
         AssertionError: If no API key can be found in the parameters or environment.
     """
-    data = [load_data(input_file) for input_file in input_files]
+    data = [load_data(input_file.trajectories) for input_file in benchmark_paths]
     ids = [trajectory[0] for dataset in data for trajectory in dataset]
     id_map = {x: i for (i, x) in enumerate(ids)}
 
@@ -78,13 +79,13 @@ def visualise_swe_bench(
 
     # Upload the structure of the dataset.
     vis_project.upload_dataset(
-        load_swe_bench_dataset(input_files[0]),
+        load_swe_bench_dataset(benchmark_paths[0]),
         id_column="id",
         data_column="problem_statement",
     )
 
     # Do evaluation
-    for input_file, data_entry in zip(input_files, data):
+    for input_file, data_entry in zip(benchmark_paths, data):
         resolved = [0] * len(data[0])
         for entry in data_entry:
             resolved[id_map[entry[0]]] = entry[2]
@@ -95,7 +96,7 @@ def visualise_swe_bench(
             },
             index=ids,
         )
-        model_name = re.sub(r"data/.*lite/", "", input_file)
+        model_name = re.sub(r"data/.*lite/", "", str(input_file.trajectories))
         model_name = re.sub(r"(od_output|output).jsonl", "", model_name)
         model_name = model_name.replace("/", "_")
         vis_project.upload_system(
@@ -179,7 +180,7 @@ def visualize_aider_bench(input_files: list[str]):
 
 
 @click.command()
-@click.argument("files", type=click.Path(exists=True), nargs=-1)
+@click.argument("files", type=click.Path(exists=True, file_okay=False), nargs=-1)
 @click.option("--report-title", type=str)
 @click.option(
     "--benchmark", type=click.Choice(["swe-bench", "aider-bench"]), default="swe-bench"
@@ -191,7 +192,11 @@ def cli(files, report_title, benchmark, zeno_api_key):
     """
     match benchmark:
         case "swe-bench":
-            visualise_swe_bench(files, report_title, zeno_api_key)
+            visualise_swe_bench(
+                [SWEBenchPath.from_directory(file) for file in files],
+                report_title,
+                zeno_api_key,
+            )
         case "aider-bench":
             visualize_aider_bench(files)
 
