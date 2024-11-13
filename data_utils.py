@@ -4,6 +4,8 @@ import re
 
 from models import SWEBenchInstance
 
+import pandas as pd
+
 
 def extract_conversation(history):
     conversation = []
@@ -46,6 +48,42 @@ def extract_conversation(history):
                             }
                         )
     return conversation
+
+
+def load_swe_bench_dataset(filepath: str) -> pd.DataFrame:
+    """
+    Load the SWE-bench dataset from an OpenHands-generated output trajectory file.
+
+    The resulting dataframe can be passed to ZenoML projects as a dataset.
+
+    Args:
+        filepath (str): Filepath pointing to a trajectory file (usually a `.jsonl`).
+
+    Raises:
+        FileNotFoundError: If no file can be found at the provided path.
+    """
+    rows: list[pd.DataFrame] = []
+
+    with open(filepath, "r") as file:
+        for line in file.readlines():
+            data = json.loads(line)
+            row = pd.DataFrame(
+                [
+                    {
+                        "id": data.get("instance_id"),
+                        "problem_statement": data.get("instance", {}).get(
+                            "problem_statement"
+                        ),
+                    }
+                ]
+            )
+            rows.append(row)
+
+    dataset = pd.concat(rows, ignore_index=True)
+    dataset["statement_length"] = dataset["problem_statement"].apply(len)
+    dataset["repo"] = dataset["id"].str.rsplit("-", n=1).str[0]
+
+    return dataset
 
 
 def load_data(file_path):

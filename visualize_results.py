@@ -8,7 +8,12 @@ import click
 import zeno_client
 import pandas as pd
 
-from data_utils import load_data, load_data_aider_bench, get_model_name_aider_bench
+from data_utils import (
+    load_data,
+    load_data_aider_bench,
+    get_model_name_aider_bench,
+    load_swe_bench_dataset,
+)
 
 
 def visualise_swe_bench(
@@ -71,19 +76,9 @@ def visualise_swe_bench(
         ],
     )
 
-    # use zeno to visualize
-    df_data = pd.DataFrame(
-        {
-            "id": ids,
-            "problem_statement": [x[1] for x in data[0]],
-        },
-        index=ids,
-    )
-    df_data["statement_length"] = df_data["problem_statement"].apply(len)
-    df_data["repo"] = df_data["id"].str.rsplit("-", n=1).str[0]
-
+    # Upload the structure of the dataset.
     vis_project.upload_dataset(
-        df_data,
+        load_swe_bench_dataset(input_files[0]),
         id_column="id",
         data_column="problem_statement",
     )
