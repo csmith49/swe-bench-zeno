@@ -2,9 +2,9 @@ import json
 import os
 import re
 
-from models import SWEBenchInstance
-
 import pandas as pd
+
+from models import SWEBenchPath, SWEBenchInstance
 
 
 def extract_conversation(history):
@@ -50,21 +50,15 @@ def extract_conversation(history):
     return conversation
 
 
-def load_swe_bench_dataset(filepath: str) -> pd.DataFrame:
+def load_swe_bench_dataset(benchmark_path: SWEBenchPath) -> pd.DataFrame:
     """
     Load the SWE-bench dataset from an OpenHands-generated output trajectory file.
 
     The resulting dataframe can be passed to ZenoML projects as a dataset.
-
-    Args:
-        filepath (str): Filepath pointing to a trajectory file (usually a `.jsonl`).
-
-    Raises:
-        FileNotFoundError: If no file can be found at the provided path.
     """
     rows: list[pd.DataFrame] = []
 
-    with open(filepath, "r") as file:
+    with open(benchmark_path.trajectories, "r") as file:
         for line in file.readlines():
             data = json.loads(line)
             row = pd.DataFrame(
@@ -84,6 +78,39 @@ def load_swe_bench_dataset(filepath: str) -> pd.DataFrame:
     dataset["repo"] = dataset["id"].str.rsplit("-", n=1).str[0]
 
     return dataset
+
+
+def load_swe_bench_trajectories(benchmark_path: SWEBenchPath) -> pd.DataFrame:
+    """
+    ...
+    """
+
+    # Load the results. When we load a trajectory we'll find the associated instance object and
+    # flatten the needed parameters.
+    results: dict[str, SWEBenchInstance] = {}
+    with open(benchmark_path.results, "r") as file:
+        for line in file.readlines():
+            instance = SWEBenchInstance.model_validate_json(line)
+            results[instance.instance_id] = instance
+
+    # Load the trajectories.
+    trajectories: list[pd.DataFrame] = []
+    with open(benchmark_path.trajectories, "r") as file:
+        for line in file.readlines():
+            data = json.loads(line)
+            instance = results[data["instance_id"]]
+            trajectory = pd.DataFrame(
+                [
+                    {
+                        "id": data["instance_id"],
+                        "history": extract_conversation(data["history"]),
+                        "resolved": 1 if instance.test_result.report.resolved else 0,
+                    }
+                ]
+            )
+            trajectories.append(trajectory)
+
+    return pd.concat(trajectories, ignore_index=True)
 
 
 def load_data(file_path):
