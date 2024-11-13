@@ -104,7 +104,8 @@ def load_swe_bench_trajectories(benchmark_path: SWEBenchPath) -> pd.DataFrame:
                     {
                         "id": data["instance_id"],
                         "history": extract_conversation(data["history"]),
-                        "resolved": 1 if instance.test_result.report.resolved else 0,
+                        "resolved": instance.test_result.report.resolved,
+                        "git_patch": instance.test_result.git_patch
                     }
                 ]
             )

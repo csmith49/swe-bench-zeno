@@ -13,25 +13,29 @@ class SWEBenchPath(BaseModel):
     Pairs files containing trajectories with their results. Ensures the files exist.
     """
 
-    name: str
     trajectories: FilePath
     results: FilePath
+    metadata: FilePath
 
     @staticmethod
     def from_directory(
         directory: str,
-        name: str | None = None,
         trajectory_filename: str = "output.jsonl",
         results_filename: str = "output.swebench_eval.jsonl",
+        metadata_filename: str = "metadata.json",
     ) -> SWEBenchPath:
         """
         Build a `SWEBenchPath` object from the files in the directory.
         """
         return SWEBenchPath(
-            name=name if name else os.path.basename(directory),
             trajectories=FilePath(os.path.join(directory, trajectory_filename)),
             results=FilePath(os.path.join(directory, results_filename)),
+            metadata=FilePath(os.path.join(directory, metadata_filename)),
         )
+
+    @property
+    def name(self) -> str:
+        return os.path.basename(os.path.dirname(self.trajectories))
 
 
 class SWEBenchInstance(BaseModel):

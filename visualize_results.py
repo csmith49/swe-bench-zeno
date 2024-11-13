@@ -54,7 +54,7 @@ def visualise_swe_bench(
         view={
             "data": {"type": "markdown"},
             "label": {"type": "text"},
-            "output": {"type": "text"},
+            "output": {"type": "code"},
         },
         description="OpenHands agent performance comparisons on SWE-bench",
         public=False,
@@ -76,7 +76,7 @@ def visualise_swe_bench(
             load_swe_bench_trajectories(benchmark),
             name=benchmark.name,
             id_column="id",
-            output_column="resolved",
+            output_column="git_patch",
         )
 
 
