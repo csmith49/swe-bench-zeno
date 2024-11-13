@@ -68,3 +68,25 @@ class SWEBenchTestReport(BaseModel):
     failed_apply_patch: bool
     error_eval: bool
     test_timeout: bool
+
+
+class AgentMetadata(BaseModel):
+    """
+    Metadata capturing the configuration of the OpenHands agent.
+    """
+
+    agent_class: str
+    llm_config: LLMConfig
+    max_iterations: int
+    git_commit: str
+    dataset: str
+
+
+class LLMConfig(BaseModel):
+    """
+    Metadata capturing the configuration of the LLM used by an OpenHands agent.
+    """
+    model: str
+    embedding_model: str
+    temperature: float
+    top_p: float
