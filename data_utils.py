@@ -2,6 +2,8 @@ import json
 import os
 import re
 
+from models import SWEBenchInstance
+
 
 def extract_conversation(history):
     conversation = []
@@ -62,10 +64,10 @@ def load_data(file_path):
     if os.path.exists(report_json_path):
         with open(report_json_path, "r") as report_file:
             for line in report_file:
-                entry = json.loads(line)
-                resolved_map[entry["instance_id"]] = entry["test_result"]["report"][
-                    "resolved"
-                ]
+                instance = SWEBenchInstance.model_validate_json(line)
+                resolved_map[instance.instance_id] = (
+                    instance.test_result.report.resolved
+                )
     elif os.path.exists(report_md_path):
         # If report.json doesn't exist, parse the markdown file
         with open(report_md_path, "r") as md_file:

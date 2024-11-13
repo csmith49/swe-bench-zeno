@@ -1,3 +1,4 @@
 zeno-client
 pandas
 click
+pydantic
