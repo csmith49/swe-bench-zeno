@@ -2,10 +2,12 @@
 
 import os
 import re
-from data_utils import load_data, load_data_aider_bench, get_model_name_aider_bench
+
 import argparse
 import zeno_client
 import pandas as pd
+
+from data_utils import load_data, load_data_aider_bench, get_model_name_aider_bench
 
 
 def visualise_swe_bench(input_files: list[str]):
@@ -74,6 +76,7 @@ def visualise_swe_bench(input_files: list[str]):
             df_system, name=model_name, id_column="id", output_column="resolved"
         )
 
+
 def visualize_aider_bench(input_files: list[str]):
     """Visualize data from multiple input files."""
     data = [load_data_aider_bench(input_file) for input_file in input_files]
@@ -102,13 +105,13 @@ def visualize_aider_bench(input_files: list[str]):
         index=ids,
     )
     df_data["instruction_length"] = df_data["instruction"].apply(len)
-    #df_data["repo"] = df_data["id"].str.rsplit("-", n=1).str[0]
+    # df_data["repo"] = df_data["id"].str.rsplit("-", n=1).str[0]
     vis_project = vis_client.create_project(
         name="Aider Bench Code Editing Visualization",
         view={
             "data": {"type": "markdown"},
             "label": {"type": "text"},
-            "output": {"type": "markdown"}
+            "output": {"type": "markdown"},
         },
         description="Aider Bench Code Editing",
         public=False,
@@ -116,37 +119,36 @@ def visualize_aider_bench(input_files: list[str]):
             zeno_client.ZenoMetric(name="resolved", type="mean", columns=["resolved"]),
         ],
     )
-    vis_project.upload_dataset(
-        df_data,
-        id_column="id",
-        data_column="instruction"
-    )
+    vis_project.upload_dataset(df_data, id_column="id", data_column="instruction")
 
     # Do evaluation
     for input_file, data_entry in zip(input_files, data):
-        output = [''] * len(data[0])
+        output = [""] * len(data[0])
         resolved = [0] * len(data[0])
         for entry in data_entry:
             resolved[id_map[entry[0]]] = entry[2]
-            output[id_map[entry[0]]] += f'## Resolved\n {entry[2]} \n ## Test Cases\n {entry[3]}\n ## Agent Trajectory\n'
+            output[
+                id_map[entry[0]]
+            ] += f"## Resolved\n {entry[2]} \n ## Test Cases\n {entry[3]}\n ## Agent Trajectory\n"
             for i in range(len(entry[4])):
-                output[id_map[entry[0]]] += f'### Step {i+1} \n'
+                output[id_map[entry[0]]] += f"### Step {i+1} \n"
                 output[id_map[entry[0]]] += f'Action: {entry[4][i]["action"]}\n'
                 output[id_map[entry[0]]] += f'Code: {entry[4][i]["code"]}\n'
                 output[id_map[entry[0]]] += f'Thought: {entry[4][i]["thought"]}\n'
-                output[id_map[entry[0]]] += f'Observation: {entry[4][i]["observation"]}\n'
+                output[
+                    id_map[entry[0]]
+                ] += f'Observation: {entry[4][i]["observation"]}\n'
 
         df_system = pd.DataFrame(
-            {
-                "id": ids,
-                "agent output": output,
-                "resolved": resolved
-            },
+            {"id": ids, "agent output": output, "resolved": resolved},
             index=ids,
         )
 
         vis_project.upload_system(
-            df_system, name=get_model_name_aider_bench(input_file), id_column="id", output_column="agent output"
+            df_system,
+            name=get_model_name_aider_bench(input_file),
+            id_column="id",
+            output_column="agent output",
         )
 
 
@@ -155,7 +157,13 @@ if __name__ == "__main__":
         description="Visualize results from SWE-bench experiments."
     )
     parser.add_argument("input_files", help="Path to multiple input files", nargs="+")
-    parser.add_argument("benchmark", help="Benchmark to visualize", type=str, choices=["swe-bench", "aider-bench"], default="swe-bench")
+    parser.add_argument(
+        "benchmark",
+        help="Benchmark to visualize",
+        type=str,
+        choices=["swe-bench", "aider-bench"],
+        default="swe-bench",
+    )
     args = parser.parse_args()
     if args.benchmark == "swe-bench":
         visualise_swe_bench(args.input_files)
